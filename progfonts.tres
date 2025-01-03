@@ -1,0 +1,7 @@
+[gd_resource type="SystemFont" format=3 uid="uid://c6uqu4gesk2u8"]
+
+[resource]
+font_names = PackedStringArray("MyProgrammingFont", "Source Code Pro", "Source Han Code JP N", "Noto Mono", "Liberation Mono", "Consolas", "DejaVu Sans Mono", "Fira Code", "Inconsolata", "Courier New", "Monospace")
+generate_mipmaps = true
+hinting = 2
+subpixel_positioning = 3

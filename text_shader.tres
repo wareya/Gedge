@@ -1,0 +1,40 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://di60pdhnswgw5"]
+
+[sub_resource type="Shader" id="Shader_6tco2"]
+code = "shader_type canvas_item;
+render_mode blend_mix;
+
+
+varying vec4 color;
+varying flat vec2 uv2;
+void vertex()
+{
+    color = COLOR;
+    uv2 = UV;
+}
+
+void fragment()
+{
+    float stem_darken_gamma = 1.625;
+
+    vec4 tx = texture(TEXTURE, UV);
+    vec4 tx2 = texture(TEXTURE, uv2);
+    bool probably_lcd = false;
+    if ((tx.a == 1.0 || tx.a == 0.0) && tx2.a == 0.0 && color.a != 0.0 && color != COLOR)
+        probably_lcd = true;
+    if (probably_lcd)
+    {
+        if (tx.a == 0.0)
+            discard;
+        tx = pow(tx, vec4(1.0/stem_darken_gamma));
+        COLOR = tx;
+    }
+    else
+    {
+        tx.a = pow(tx.a, 1.0/stem_darken_gamma);
+        COLOR = color * tx;
+    }
+}"
+
+[resource]
+shader = SubResource("Shader_6tco2")
