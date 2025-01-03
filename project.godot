@@ -24,13 +24,13 @@ config/icon="res://icon.svg"
 window/size/sharp_corners=true
 window/energy_saving/keep_screen_on=false
 window/subwindows/embed_subwindows=false
+window/dpi/allow_hidpi=false
 
 [gui]
 
-theme/default_theme_scale=0.7
+fonts/dynamic_fonts/use_oversampling=false
+theme/default_theme_scale=0.8
 theme/custom_font="uid://hn0usltrwstu"
-theme/default_font_antialiasing=2
-theme/default_font_generate_mipmaps=true
 
 [physics]
 

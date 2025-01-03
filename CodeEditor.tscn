@@ -1,8 +1,15 @@
-[gd_scene load_steps=5 format=3 uid="uid://luian6aanbdw"]
+[gd_scene load_steps=7 format=3 uid="uid://luian6aanbdw"]
 
 [ext_resource type="SystemFont" uid="uid://c6uqu4gesk2u8" path="res://progfonts.tres" id="1_yyg5b"]
 [ext_resource type="StyleBox" uid="uid://b7o7oqq56y0ux" path="res://bgnormal.tres" id="2_2bkb6"]
 [ext_resource type="CodeHighlighter" uid="uid://iuaexk8asson" path="res://new_syntax_highlighter.tres" id="3_yyg5b"]
+
+[sub_resource type="SystemFont" id="SystemFont_yyg5b"]
+font_names = PackedStringArray("Sans-Serif")
+subpixel_positioning = 0
+
+[sub_resource type="Theme" id="Theme_2bkb6"]
+default_font = SubResource("SystemFont_yyg5b")
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_d21ai"]
 
@@ -14,18 +21,19 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_2bkb6")
 theme_override_colors/current_line_color = Color(1, 1, 1, 0.0313726)
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/selection_color = Color(0.537255, 0.670588, 0.866667, 0.14902)
+theme_override_colors/caret_color = Color(1, 1, 1, 1)
 theme_override_constants/line_spacing = 0
-theme_override_constants/caret_width = 2
+theme_override_constants/caret_width = 1
 theme_override_fonts/font = ExtResource("1_yyg5b")
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = ExtResource("2_2bkb6")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_d21ai")
 deselect_on_focus_loss_enabled = false
 wrap_mode = 1
-indent_wrapped_lines = true
 scroll_past_end_of_file = true
 minimap_draw = true
 minimap_width = 60

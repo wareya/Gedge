@@ -1,7 +1,12 @@
-[gd_resource type="SystemFont" format=3 uid="uid://c6uqu4gesk2u8"]
+[gd_resource type="SystemFont" load_steps=2 format=3 uid="uid://c6uqu4gesk2u8"]
+
+[sub_resource type="SystemFont" id="SystemFont_qr3hi"]
+font_names = PackedStringArray("Source Han Code JP N", "Noto Sans Mono CJK JP", "IPAGothic", "TakaoGothic", "MS Gothic", "Meiryo")
+allow_system_fallback = false
+hinting = 2
 
 [resource]
+fallbacks = Array[Font]([SubResource("SystemFont_qr3hi")])
 font_names = PackedStringArray("MyProgrammingFont", "Source Code Pro", "Source Han Code JP N", "Noto Mono", "Liberation Mono", "Consolas", "DejaVu Sans Mono", "Fira Code", "Inconsolata", "Courier New", "Monospace")
-generate_mipmaps = true
+allow_system_fallback = false
 hinting = 2
-subpixel_positioning = 3

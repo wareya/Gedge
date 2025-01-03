@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://c41ba1pslrcle"]
+[gd_scene load_steps=18 format=3 uid="uid://c41ba1pslrcle"]
 
 [ext_resource type="Script" uid="uid://bjfdfa80a55sf" path="res://node_2d.gd" id="1_0jya4"]
 [ext_resource type="Material" uid="uid://di60pdhnswgw5" path="res://text_shader.tres" id="2_0hol4"]
@@ -16,7 +16,6 @@ font_names = PackedStringArray("Segoe UI", "Tahoma", "Sans-Serif")
 disable_embedded_bitmaps = false
 hinting = 2
 subpixel_positioning = 0
-keep_rounding_remainders = false
 
 [sub_resource type="Theme" id="Theme_0e48y"]
 default_font = SubResource("SystemFont_0e48y")
@@ -31,20 +30,10 @@ content_margin_bottom = 4.0
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d21ai"]
 bg_color = Color(0.0689201, 0.0641482, 0.0641482, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_epypp"]
-bg_color = Color(0.177539, 0.159408, 0.159408, 1)
-border_width_left = 1
-border_width_right = 1
-border_color = Color(0.0757087, 0.0714626, 0.0714626, 1)
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0hol4"]
 bg_color = Color(0.158241, 0.165217, 0.177539, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0e48y"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_epypp"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0hol4"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_q6r6c"]
 
@@ -137,7 +126,6 @@ size_flags_vertical = 3
 theme_override_constants/separation = 0
 theme_override_constants/minimum_grab_thickness = 0
 theme_override_constants/autohide = 1
-theme_override_styles/split_bar_background = SubResource("StyleBoxFlat_epypp")
 split_offset = 160
 
 [node name="Tree" type="Tree" parent="VSplitContainer/EditorArea"]
@@ -149,8 +137,6 @@ theme_override_constants/draw_relationship_lines = 1
 theme_override_font_sizes/font_size = 13
 theme_override_styles/panel = SubResource("StyleBoxFlat_0hol4")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0e48y")
-theme_override_styles/hovered = SubResource("StyleBoxEmpty_epypp")
-theme_override_styles/hovered_dimmed = SubResource("StyleBoxEmpty_0hol4")
 theme_override_styles/selected = SubResource("StyleBoxEmpty_q6r6c")
 theme_override_styles/selected_focus = SubResource("StyleBoxEmpty_kdubu")
 allow_rmb_select = true
@@ -170,3 +156,5 @@ theme_override_styles/tab_hovered = SubResource("StyleBoxFlat_ir8iy")
 theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_hqns4")
 drag_to_rearrange_enabled = true
 tab_focus_mode = 0
+
+[node name="PopupMenu" type="PopupMenu" parent="."]
