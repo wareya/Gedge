@@ -9,7 +9,7 @@ content_margin_left = 0.0
 content_margin_top = 0.0
 content_margin_right = 0.0
 content_margin_bottom = 0.0
-bg_color = Color(0.113928, 0.11332, 0.130018, 1)
+bg_color = Color(0.146687, 0.14629, 0.157173, 1)
 
 [sub_resource type="SystemFont" id="SystemFont_0e48y"]
 font_names = PackedStringArray("Segoe UI", "Tahoma", "Sans-Serif")
@@ -85,6 +85,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_q6r6c")
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("1_0jya4")
+stale_check_ms = null
 
 [node name="MenuList" type="HFlowContainer" parent="VSplitContainer"]
 layout_mode = 2
@@ -143,9 +144,13 @@ allow_rmb_select = true
 enable_recursive_folding = false
 hide_root = true
 
-[node name="Editors" type="TabContainer" parent="VSplitContainer/EditorArea"]
+[node name="Main" type="VBoxContainer" parent="VSplitContainer/EditorArea"]
+layout_mode = 2
+
+[node name="Editors" type="TabContainer" parent="VSplitContainer/EditorArea/Main"]
 material = ExtResource("2_0hol4")
 layout_mode = 2
+size_flags_vertical = 3
 theme_override_fonts/font = SubResource("SystemFont_0e48y")
 theme_override_font_sizes/font_size = 11
 theme_override_icons/drop_mark = ExtResource("3_epypp")
@@ -157,4 +162,28 @@ theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_hqns4")
 drag_to_rearrange_enabled = true
 tab_focus_mode = 0
 
+[node name="StatusBar" type="HBoxContainer" parent="VSplitContainer/EditorArea/Main"]
+visible = false
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="VSplitContainer/EditorArea/Main/StatusBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VSeparator" type="VSeparator" parent="VSplitContainer/EditorArea/Main/StatusBar"]
+layout_mode = 2
+
+[node name="CRLF" type="Label" parent="VSplitContainer/EditorArea/Main/StatusBar"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Spacer2" type="Control" parent="VSplitContainer/EditorArea/Main/StatusBar"]
+custom_minimum_size = Vector2(5, 0)
+layout_mode = 2
+
 [node name="PopupMenu" type="PopupMenu" parent="."]
+
+[node name="Label" type="Label" parent="."]
+visible = false
+layout_mode = 2
+text = "124.27"
