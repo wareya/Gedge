@@ -124,6 +124,14 @@ item_1/id = 1
 item_2/text = "Save As..."
 item_2/id = 2
 
+[node name="Edit" type="PopupMenu" parent="VSplitContainer/MenuList/MenuBar"]
+hide_on_checkable_item_selection = false
+item_count = 2
+item_0/text = "Undo"
+item_0/id = 0
+item_1/text = "Redo"
+item_1/id = 1
+
 [node name="Control" type="Panel" parent="VSplitContainer"]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
@@ -194,4 +202,4 @@ layout_mode = 2
 [node name="Label" type="Label" parent="."]
 visible = false
 layout_mode = 2
-text = "138.3"
+text = "143.2"

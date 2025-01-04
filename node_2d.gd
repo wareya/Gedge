@@ -87,6 +87,11 @@ func _ready() -> void:
     m_file.set_item_accelerator(2, KEY_S | KEY_MASK_SHIFT | ctrl_mask)
     m_file.index_pressed.connect(m_file_pressed)
     
+    var m_edit := menu.get_node("Edit") as PopupMenu
+    m_edit.set_item_accelerator(0, KEY_Z | ctrl_mask)
+    m_edit.set_item_accelerator(1, KEY_Z | KEY_MASK_SHIFT | ctrl_mask)
+    m_edit.index_pressed.connect(m_edit_pressed)
+    
     get_tree().root.files_dropped.connect(drop_files)
 
 func drop_files(a):
@@ -317,6 +322,14 @@ func m_file_pressed(index : int):
     elif index == 2:
         trigger_saveas()
 
+func m_edit_pressed(index : int):
+    if editors.current_tab < 0:
+        return
+    if index == 0:
+        (editors.get_tab_control(editors.current_tab) as CodeEdit).undo()
+    elif index == 1:
+        (editors.get_tab_control(editors.current_tab) as CodeEdit).redo()
+
 func recover_editor_text(editor : CodeEdit) -> String:
     if open_files_is_crlf[editors.get_tab_metadata(editor.get_index())]:
         return editor.text.replace("\n", "\r\n")
@@ -327,8 +340,7 @@ func get_editor_md5(editor : CodeEdit) -> String:
         return editor.text.replace("\n", "\r\n").md5_text()
     else:
         return editor.text.md5_text()
-    
-    
+
 var last_ts_check = Time.get_ticks_msec()
 func buffer_updated(editor : CodeEdit):
     var idx := editor.get_index()
