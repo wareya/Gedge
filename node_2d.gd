@@ -79,13 +79,23 @@ func _ready() -> void:
     var root : TreeItem = tree.create_item(null)
     add_items_to_tree(tree, root, data)
     
-    tree.item_activated.connect(open_selected)
+    tree.item_activated.connect(open_selected_tree_item)
     
     var m_file := menu.get_node("File") as PopupMenu
     m_file.set_item_accelerator(0, KEY_O | ctrl_mask)
     m_file.set_item_accelerator(1, KEY_S | ctrl_mask)
     m_file.set_item_accelerator(2, KEY_S | KEY_MASK_SHIFT | ctrl_mask)
     m_file.index_pressed.connect(m_file_pressed)
+    
+    get_tree().root.files_dropped.connect(drop_files)
+
+func drop_files(a):
+    for _f in a:
+        var f := _f as String
+        print(f)
+        f = f.replace("\\", "\\.\\")
+        f = f.replace("/", "/./")
+        do_open(f)
 
 var open_files = {}
 var open_files_is_crlf = {}
@@ -141,12 +151,28 @@ func init_buffer(s : String, fname : String, ftime):
     end = Time.get_ticks_msec()
     prints("md5 time (ms):", str(end-start))
     s = ""
+
 func do_open(fname : String):
+    if fname.is_relative_path():
+        fname = DirAccess.open(".").get_current_dir() + "/" + fname
+    
+    # forcibly canonicalize filename
+    if fname and FileAccess.file_exists(fname):
+        var f := file_open_pretty_please(fname, FileAccess.READ)
+        if !f:
+            OS.alert("File may not exist", "Failed to open file")
+            return
+        fname = f.get_path_absolute()
+        f.close()
+    
     if fname in open_files:
         open_files[fname].show()
     elif fname and FileAccess.file_exists(fname):
         var start = Time.get_ticks_msec()
         var f := file_open_pretty_please(fname, FileAccess.READ)
+        if !f:
+            OS.alert("File may not exist", "Failed to open file")
+            return
         var s = f.get_as_text()
         var ftime = FileAccess.get_modified_time(fname)
         f.close()
@@ -235,6 +261,9 @@ func do_save(fname : String, editor : CodeEdit):
         return
     
     var f := file_open_pretty_please(temp_fname, FileAccess.WRITE_READ)
+    if !f:
+        OS.alert("Failed to open file for writing", "Saving Failed")
+        return
     f.store_string(text)
     f.flush()
     f.flush()
@@ -245,6 +274,9 @@ func do_save(fname : String, editor : CodeEdit):
     text = ""
     
     f = file_open_pretty_please(temp_fname, FileAccess.READ)
+    if !f:
+        OS.alert("Failed to reopen file to verify correct saving", "Saving Failed")
+        return
     var text2 = f.get_as_text()
     f.close()
     
@@ -324,7 +356,7 @@ func buffer_updated(editor : CodeEdit):
         var end = Time.get_ticks_msec()
         prints("dirty check time (ms):", str(end-start))
 
-func open_selected():
+func open_selected_tree_item():
     var n : TreeItem = tree.get_selected()
     if !n:
         return
@@ -355,7 +387,7 @@ func _process(delta: float) -> void:
         if any_window_has_focus():
             since_input += delta
             if since_input > 2.0:
-                OS.low_processor_usage_mode_sleep_usec = 40000 # check for state updates at a rate of at most 25hz
+                OS.low_processor_usage_mode_sleep_usec = 20000 # check for state updates at a rate of at most 50hz
             else:
                 OS.low_processor_usage_mode_sleep_usec = 4000 # 250hz
         else:

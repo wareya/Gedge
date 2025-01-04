@@ -194,4 +194,4 @@ layout_mode = 2
 [node name="Label" type="Label" parent="."]
 visible = false
 layout_mode = 2
-text = "141.97"
+text = "138.3"
