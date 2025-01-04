@@ -29,7 +29,6 @@ window/dpi/allow_hidpi=false
 
 fonts/dynamic_fonts/use_oversampling=false
 theme/default_theme_scale=0.8
-theme/custom_font="uid://hn0usltrwstu"
 
 [physics]
 

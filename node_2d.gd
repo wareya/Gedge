@@ -14,13 +14,13 @@ func get_new_dummy_name():
     return dummy_name_prefix + str(dummy_name_num)
 
 func file_open_pretty_please(fname, mode) -> FileAccess:
-    # on some OSs, like windows, file access can fail spuriously for no reason and simply require an immediate retry
+    # on some OSs, like windows, file access can fail spuriously
+    # for no reason and simply require an immediate retry
     var f = FileAccess.open(fname, mode)
     for _i in 5:
-        if !f:
-            f = FileAccess.open(fname, mode)
-        else:
+        if f:
             break
+        f = FileAccess.open(fname, mode)
     return f
 
 func get_dir_contents(dir : DirAccess) -> Dictionary:
@@ -84,6 +84,7 @@ func _ready() -> void:
     var m_file := menu.get_node("File") as PopupMenu
     m_file.set_item_accelerator(0, KEY_O | ctrl_mask)
     m_file.set_item_accelerator(1, KEY_S | ctrl_mask)
+    m_file.set_item_accelerator(2, KEY_S | KEY_MASK_SHIFT | ctrl_mask)
     m_file.index_pressed.connect(m_file_pressed)
 
 var open_files = {}
@@ -92,8 +93,55 @@ var open_file_hashes = {}
 var open_file_modtimes = {}
 var open_file_modtimes_temp = {}
 
-func do_open(fname : String):
+func init_buffer(s : String, fname : String, ftime):
     var justfile := fname.get_file()
+    
+    var start = Time.get_ticks_msec()
+    var editor := preload("res://CodeEditor.tscn").instantiate()
+    editor.use_parent_material = true
+    editor.text_changed.connect(buffer_updated.bind(editor))
+    var end = Time.get_ticks_msec()
+    prints("child init time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    editor.syntax_highlighter = editor.syntax_highlighter.duplicate()
+    end = Time.get_ticks_msec()
+    prints("highlighter setup time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    editors.add_child(editor)
+    var idx = editor.get_index()
+    end = Time.get_ticks_msec()
+    prints("add child time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    editors.set_tab_title(idx, justfile)
+    editors.set_tab_metadata(idx, fname)
+    editors.set_tab_icon(idx, preload("res://text.png"))
+    open_files[fname] = editor
+    open_file_modtimes[fname] = ftime
+    open_file_modtimes_temp[fname] = ftime
+    open_files_is_crlf[fname] = s.count("\n") == s.count("\r\n")
+    end = Time.get_ticks_msec()
+    prints("other stuff time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    editor.text = s
+    editor.clear_undo_history()
+    end = Time.get_ticks_msec()
+    prints("text assign time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    editor.show()
+    end = Time.get_ticks_msec()
+    prints("show time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    open_file_hashes[fname] = s.md5_text()
+    end = Time.get_ticks_msec()
+    prints("md5 time (ms):", str(end-start))
+    s = ""
+func do_open(fname : String):
     if fname in open_files:
         open_files[fname].show()
     elif fname and FileAccess.file_exists(fname):
@@ -105,56 +153,21 @@ func do_open(fname : String):
         var end = Time.get_ticks_msec()
         prints("file read time (ms):", str(end-start))
         
-        start = Time.get_ticks_msec()
-        var editor := preload("res://CodeEditor.tscn").instantiate()
-        editor.use_parent_material = true
-        editor.text_changed.connect(buffer_updated.bind(editor))
-        prints("child init time (ms):", str(end-start))
-        
-        start = Time.get_ticks_msec()
-        editor.syntax_highlighter = editor.syntax_highlighter.duplicate()
-        end = Time.get_ticks_msec()
-        prints("highlighter setup time (ms):", str(end-start))
-        
-        start = Time.get_ticks_msec()
-        editors.add_child(editor)
-        var idx = editor.get_index()
-        end = Time.get_ticks_msec()
-        prints("add child time (ms):", str(end-start))
-        
-        start = Time.get_ticks_msec()
-        editors.set_tab_title(idx, justfile)
-        editors.set_tab_metadata(idx, fname)
-        editors.set_tab_icon(idx, preload("res://text.png"))
-        open_files[fname] = editor
-        open_file_modtimes[fname] = ftime
-        open_file_modtimes_temp[fname] = ftime
-        open_files_is_crlf[fname] = s.count("\n") == s.count("\r\n")
-        end = Time.get_ticks_msec()
-        prints("other stuff time (ms):", str(end-start))
-        
-        start = Time.get_ticks_msec()
-        editor.text = s
-        editor.clear_undo_history()
-        end = Time.get_ticks_msec()
-        prints("text assign time (ms):", str(end-start))
-        
-        start = Time.get_ticks_msec()
-        editor.show()
-        end = Time.get_ticks_msec()
-        prints("show time (ms):", str(end-start))
-        
-        start = Time.get_ticks_msec()
-        open_file_hashes[fname] = s.md5_text()
-        end = Time.get_ticks_msec()
-        prints("md5 time (ms):", str(end-start))
-        s = ""
+        init_buffer(s, fname, ftime)
 
 func trigger_open():
     var diag := FileDialog.new()
     diag.use_native_dialog = true
     diag.file_mode = FileDialog.FILE_MODE_OPEN_FILE
     diag.file_selected.connect(do_open)
+    diag.show()
+
+func trigger_saveas():
+    var diag := FileDialog.new()
+    diag.use_native_dialog = true
+    diag.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+    var editor = editors.get_tab_control(editors.current_tab)
+    diag.file_selected.connect(func (f): do_save(f, editor))
     diag.show()
 
 func trigger_save():
@@ -179,33 +192,37 @@ class MultiHandler extends RefCounted:
         var ret = MultiHandler.new()
         for c in array:
             ret._connect(c)
-        return ret.fired
+        return ret
 
 func confirm_dialog(text : String, title : String):
     var d := ConfirmationDialog.new()
+    d.force_native = true
     d.title = title
     d.dialog_text = text
-    var which = await MultiHandler.first([d.confirmed, d.canceled])
+    Engine.get_main_loop().root.add_child(d)
+    d.popup_centered()
+    d.show()
+    var which = await MultiHandler.first([d.confirmed, d.canceled]).fired
     return which == d.confirmed
 
 func do_save(fname : String, editor : CodeEdit):
     var idx := editor.get_index()
-    var text := recover_editor_text(fname, editor)
+    var text := recover_editor_text(editor)
     var text_md5 := text.md5_text()
     
     open_file_modtimes_temp[fname] = FileAccess.get_modified_time(fname)
     last_ts_check_process = Time.get_ticks_msec()
     
-    if open_file_modtimes[fname] != open_file_modtimes_temp[fname] \
+    if fname in open_file_modtimes and open_file_modtimes[fname] != open_file_modtimes_temp[fname] \
         and open_file_hashes[fname] != text_md5:
         editors.set_tab_button_icon(idx, preload("res://outdated.png"))
         if !await confirm_dialog("File has been modified externally. Save anyway?", "Save Warning"):
             return
-    elif open_file_modtimes[fname] != open_file_modtimes_temp[fname]:
+    elif fname in open_file_modtimes and open_file_modtimes[fname] != open_file_modtimes_temp[fname]:
         editors.set_tab_button_icon(idx, preload("res://outdated_but_saved.png"))
         if !await confirm_dialog("File has been modified externally. Save anyway?", "Save Warning"):
             return
-    elif open_file_hashes[fname] == text_md5:
+    elif fname in open_file_hashes and open_file_hashes[fname] == text_md5:
         return
     
     var temp_fname = fname + ".~temp~"
@@ -255,6 +272,8 @@ func do_save(fname : String, editor : CodeEdit):
     open_files_is_crlf[fname] = text2.count("\n") == text2.count("\r\n")
     open_files[fname] = editor
     
+    var justfile := fname.get_file()
+    editors.set_tab_title(idx, justfile)
     editors.set_tab_button_icon(idx, null)
     editors.set_tab_metadata(idx, fname)
 
@@ -263,14 +282,16 @@ func m_file_pressed(index : int):
         trigger_open()
     elif index == 1:
         trigger_save()
+    elif index == 2:
+        trigger_saveas()
 
-func recover_editor_text(fname : String, editor : CodeEdit) -> String:
-    if open_files_is_crlf[fname]:
+func recover_editor_text(editor : CodeEdit) -> String:
+    if open_files_is_crlf[editors.get_tab_metadata(editor.get_index())]:
         return editor.text.replace("\n", "\r\n")
     else:
         return editor.text
-func get_editor_md5(fname : String, editor : CodeEdit) -> String:
-    if open_files_is_crlf[fname]:
+func get_editor_md5(editor : CodeEdit) -> String:
+    if open_files_is_crlf[editors.get_tab_metadata(editor.get_index())]:
         return editor.text.replace("\n", "\r\n").md5_text()
     else:
         return editor.text.md5_text()
@@ -289,7 +310,7 @@ func buffer_updated(editor : CodeEdit):
             last_ts_check = Time.get_ticks_usec()
         
         var start = Time.get_ticks_msec()
-        var text_md5 := get_editor_md5(fname, editor)
+        var text_md5 := get_editor_md5(editor)
         
         if open_file_modtimes[fname] != open_file_modtimes_temp[fname] \
             and open_file_hashes[fname] != text_md5:
@@ -360,7 +381,7 @@ func _process(delta: float) -> void:
             open_file_modtimes_temp[fname] = FileAccess.get_modified_time(fname)
             last_ts_check_process = Time.get_ticks_msec()
             
-            var text_md5 := get_editor_md5(fname, editor)
+            var text_md5 := get_editor_md5(editor)
             
             if open_file_modtimes[fname] != open_file_modtimes_temp[fname] \
                 and open_file_hashes[fname] != text_md5:

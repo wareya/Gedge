@@ -1,8 +1,13 @@
-[gd_scene load_steps=18 format=3 uid="uid://c41ba1pslrcle"]
+[gd_scene load_steps=20 format=3 uid="uid://c41ba1pslrcle"]
 
+[ext_resource type="FontFile" uid="uid://hn0usltrwstu" path="res://SourceCodePro-Regular.ttf" id="1_0hol4"]
 [ext_resource type="Script" uid="uid://bjfdfa80a55sf" path="res://node_2d.gd" id="1_0jya4"]
 [ext_resource type="Material" uid="uid://di60pdhnswgw5" path="res://text_shader.tres" id="2_0hol4"]
 [ext_resource type="Texture2D" uid="uid://dvt8sawex2h8a" path="res://dropmark.png" id="3_epypp"]
+
+[sub_resource type="Theme" id="Theme_q6r6c"]
+default_font = ExtResource("1_0hol4")
+default_font_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q6r6c"]
 content_margin_left = 0.0
@@ -79,6 +84,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
+theme = SubResource("Theme_q6r6c")
 theme_override_styles/panel = SubResource("StyleBoxFlat_q6r6c")
 
 [node name="VSplitContainer" type="VBoxContainer" parent="."]
@@ -110,11 +116,13 @@ flat = true
 
 [node name="File" type="PopupMenu" parent="VSplitContainer/MenuList/MenuBar"]
 hide_on_checkable_item_selection = false
-item_count = 2
-item_0/text = "Open"
+item_count = 3
+item_0/text = "Open..."
 item_0/id = 0
 item_1/text = "Save"
 item_1/id = 1
+item_2/text = "Save As..."
+item_2/id = 2
 
 [node name="Control" type="Panel" parent="VSplitContainer"]
 custom_minimum_size = Vector2(0, 1)
@@ -186,4 +194,4 @@ layout_mode = 2
 [node name="Label" type="Label" parent="."]
 visible = false
 layout_mode = 2
-text = "124.27"
+text = "141.97"
