@@ -1,4 +1,3 @@
-@tool
 extends Control
 
 @export var stale_check_ms := 5000
@@ -46,6 +45,15 @@ func add_items_to_tree(tree : Tree, parent : TreeItem, dict : Dictionary):
         else:
             add_items_to_tree(tree, item, dict[k])
 
+func ask_close(editor : CodeEdit, fname : String):
+    current_ts_update(fname)
+    force_dirty_update(editor, fname)
+    var idx := editor.get_index()
+    if editors.get_tab_button_icon(idx) != null:
+        if !await confirm_dialog("File has not been saved or has been changed externally. Close anyway?\n\nAny unsaved data will be lost.", "Close Warning"):
+            return
+    do_close(editor, fname)
+    
 func do_close(editor : CodeEdit, fname : String):
     open_files.erase(fname)
     open_file_hashes.erase(fname)
@@ -69,11 +77,22 @@ func _input(event: InputEvent) -> void:
             var idx = tb.get_tab_idx_at_point(tb.get_local_mouse_position())
             if idx >= 0 and idx == delete_idx:
                 var fname = editors.get_tab_metadata(idx)
-                do_close(editors.get_child(idx), fname)
+                ask_close(editors.get_child(idx), fname)
 
 @onready var ctrl_mask = KEY_MASK_META if OS.get_name() in ["macOS", "iOS"] else KEY_MASK_CTRL
 
+func _notification(what):
+    if what == NOTIFICATION_WM_CLOSE_REQUEST:
+        dirty_update_all()
+        # TODO: implement hot exit
+        if any_is_dirty():
+            if !await confirm_dialog("At least one file has not been saved, or has been changed externally.Close anyway?\n\nAny unsaved data will be lost.", "Close Warning"):
+                return
+        get_tree().quit()
+        
 func _ready() -> void:
+    get_tree().set_auto_accept_quit(false)
+    
     var dir := DirAccess.open("txt")
     var data := get_dir_contents(dir)
     var root : TreeItem = tree.create_item(null)
@@ -170,7 +189,7 @@ func init_buffer(s : String, fname : String, ftime):
         if s.length() > 100000:
             editor.wrap_mode = TextEdit.LINE_WRAPPING_NONE
             editor.autowrap_mode = TextServer.AUTOWRAP_OFF
-            editor.text = "<Loading.... NOTE: Very large file detected. Disabling word wrapping.>"
+            editor.text = "<Loading.... NOTE: Very large file detected. Disabling word wrapping. Editing will still work!>"
         editor.show()
         await Engine.get_main_loop().process_frame
         await Engine.get_main_loop().process_frame
@@ -260,6 +279,7 @@ func confirm_dialog(text : String, title : String):
     d.force_native = true
     d.title = title
     d.dialog_text = text
+    d.dialog_autowrap = true
     Engine.get_main_loop().root.add_child(d)
     d.popup_centered()
     d.show()
@@ -371,6 +391,42 @@ func get_editor_md5(editor : CodeEdit) -> String:
     else:
         return editor.text.md5_text()
 
+func current_ts_update(fname : String):
+    if FileAccess.file_exists(fname):
+        open_file_modtimes_temp[fname] = FileAccess.get_modified_time(fname)
+        last_ts_check = Time.get_ticks_usec()
+
+func force_dirty_update(editor : CodeEdit, fname : String):
+    var idx := editor.get_index()
+    if abs(last_ts_check - Time.get_ticks_usec()) > stale_check_ms:
+        current_ts_update(fname)
+    
+    var start = Time.get_ticks_msec()
+    var text_md5 := get_editor_md5(editor)
+    
+    if open_file_modtimes[fname] != open_file_modtimes_temp[fname] \
+        and open_file_hashes[fname] != text_md5:
+        editors.set_tab_button_icon(idx, preload("res://outdated.png"))
+    elif open_file_modtimes[fname] != open_file_modtimes_temp[fname]:
+        editors.set_tab_button_icon(idx, preload("res://outdated_but_saved.png"))
+    elif open_file_hashes[fname] != text_md5:
+        editors.set_tab_button_icon(idx, preload("res://unsaved.png"))
+    else:
+        editors.set_tab_button_icon(idx, null)
+    var end = Time.get_ticks_msec()
+    prints("dirty check time (ms):", str(end-start))
+
+func dirty_update_all():
+    for fname in open_files:
+        current_ts_update(fname)
+        force_dirty_update(open_files[fname], fname)
+
+func any_is_dirty():
+    for i in editors.get_tab_count():
+        if editors.get_tab_button_icon(i) != null:
+            return true
+    return false
+
 var last_ts_check = Time.get_ticks_msec()
 func buffer_updated(editor : CodeEdit):
     var idx := editor.get_index()
@@ -380,23 +436,9 @@ func buffer_updated(editor : CodeEdit):
         editors.set_tab_button_icon(idx, preload("res://unsaved.png"))
     else:
         if abs(last_ts_check - Time.get_ticks_usec()) > stale_check_ms:
-            open_file_modtimes_temp[fname] = FileAccess.get_modified_time(fname)
-            last_ts_check = Time.get_ticks_usec()
+            current_ts_update(fname)
         
-        var start = Time.get_ticks_msec()
-        var text_md5 := get_editor_md5(editor)
-        
-        if open_file_modtimes[fname] != open_file_modtimes_temp[fname] \
-            and open_file_hashes[fname] != text_md5:
-            editors.set_tab_button_icon(idx, preload("res://outdated.png"))
-        elif open_file_modtimes[fname] != open_file_modtimes_temp[fname]:
-            editors.set_tab_button_icon(idx, preload("res://outdated_but_saved.png"))
-        elif open_file_hashes[fname] != text_md5:
-            editors.set_tab_button_icon(idx, preload("res://unsaved.png"))
-        else:
-            editors.set_tab_button_icon(idx, null)
-        var end = Time.get_ticks_msec()
-        prints("dirty check time (ms):", str(end-start))
+        force_dirty_update(editor, fname)
 
 func open_selected_tree_item():
     var n : TreeItem = tree.get_selected()
@@ -417,7 +459,12 @@ func any_window_has_focus():
 var last_ts_check_process = Time.get_ticks_msec()
 var f := 0
 var t := 0.0
+
+var prev_timestamp = Time.get_ticks_msec()
 func _process(delta: float) -> void:
+    if Engine.is_editor_hint():
+        return
+    
     f += 1
     t += delta
     if t > 5.0:
@@ -425,35 +472,40 @@ func _process(delta: float) -> void:
         t = 0.0
         f = 0
     
-    if !Engine.is_editor_hint():
-        if any_window_has_focus():
-            since_input += delta
-            if since_input > 2.0:
-                OS.low_processor_usage_mode_sleep_usec = 20000 # check for state updates at a rate of at most 50hz
-            else:
-                OS.low_processor_usage_mode_sleep_usec = 4000 # 250hz
+    var timestamp = Time.get_ticks_msec()
+    if timestamp - prev_timestamp > 100:
+        prints("took", (timestamp - prev_timestamp)/1000.0, "seconds between frames")
+    prev_timestamp = timestamp
+    
+    if any_window_has_focus():
+        since_input += delta
+        if since_input > 2.0:
+            OS.low_processor_usage_mode_sleep_usec = 20000 # check for state updates at a rate of at most 50hz
         else:
-            since_input += delta
-            if since_input > 2.0:
-                OS.low_processor_usage_mode_sleep_usec = 200000 # 5hz
-            else:
-                OS.low_processor_usage_mode_sleep_usec = 20000 # 50hz
+            OS.low_processor_usage_mode_sleep_usec = 4000 # 250hz
+    else:
+        since_input += delta
+        if since_input > 2.0:
+            OS.low_processor_usage_mode_sleep_usec = 200000 # 5hz
+        else:
+            OS.low_processor_usage_mode_sleep_usec = 20000 # 50hz
     
     %CRLF.text = ""
     $EditorArea/Main/StatusBar.visible = false
     if editors.current_tab >= 0 and editors.current_tab < editors.get_tab_count():
         $EditorArea/Main/StatusBar.visible = true
         var fname = editors.get_tab_metadata(editors.current_tab)
-        var editor = editors.get_tab_control(editors.current_tab)
+        var editor : CodeEdit = editors.get_tab_control(editors.current_tab)
         
         if fname in open_files_is_crlf and open_files_is_crlf[fname]:
              %CRLF.text = "CRLF"
         else:
              %CRLF.text = "LF"
         
+        %RowCol.text = str(str(editor.get_caret_line()) + ":" + str(editor.get_caret_column()))
+        
         if abs(last_ts_check_process - Time.get_ticks_msec()) > stale_check_ms:
-            open_file_modtimes_temp[fname] = FileAccess.get_modified_time(fname)
-            last_ts_check_process = Time.get_ticks_msec()
+            current_ts_update(fname)
             
             var text_md5 := get_editor_md5(editor)
             

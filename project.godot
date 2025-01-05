@@ -15,7 +15,6 @@ run/main_scene="res://node_2d.tscn"
 run/enable_alt_space_menu=true
 config/features=PackedStringArray("4.3", "GL Compatibility")
 run/flush_stdout_on_print=true
-run/low_processor_mode=true
 boot_splash/show_image=false
 config/icon="res://icon.svg"
 

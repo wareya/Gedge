@@ -1,7 +1,7 @@
-[gd_scene load_steps=20 format=3 uid="uid://c41ba1pslrcle"]
+[gd_scene load_steps=21 format=3 uid="uid://c41ba1pslrcle"]
 
 [ext_resource type="FontFile" uid="uid://hn0usltrwstu" path="res://SourceCodePro-Regular.ttf" id="1_0hol4"]
-[ext_resource type="Script" uid="uid://bjfdfa80a55sf" path="res://node_2d.gd" id="1_0jya4"]
+[ext_resource type="Script" path="res://node_2d.gd" id="1_0jya4"]
 [ext_resource type="Material" uid="uid://di60pdhnswgw5" path="res://text_shader.tres" id="2_0hol4"]
 [ext_resource type="Texture2D" uid="uid://dvt8sawex2h8a" path="res://dropmark.png" id="3_epypp"]
 
@@ -77,6 +77,9 @@ content_margin_right = 7.0
 content_margin_bottom = 4.0
 bg_color = Color(0.191116, 0.182911, 0.182911, 1)
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_fgk5b"]
+content_margin_bottom = 2.0
+
 [node name="Background" type="PanelContainer"]
 anchors_preset = 15
 anchor_right = 1.0
@@ -117,7 +120,6 @@ flat = true
 hide_on_checkable_item_selection = false
 item_count = 3
 item_0/text = "Open..."
-item_0/id = 0
 item_1/text = "Save"
 item_1/id = 1
 item_2/text = "Save As..."
@@ -127,7 +129,6 @@ item_2/id = 2
 hide_on_checkable_item_selection = false
 item_count = 2
 item_0/text = "Undo"
-item_0/id = 0
 item_1/text = "Redo"
 item_1/id = 1
 
@@ -147,9 +148,9 @@ split_offset = 160
 [node name="Tree" type="Tree" parent="VSplitContainer/EditorArea"]
 layout_mode = 2
 theme = SubResource("Theme_0e48y")
-theme_override_constants/v_separation = 1
 theme_override_constants/draw_guides = 0
 theme_override_constants/draw_relationship_lines = 1
+theme_override_constants/v_separation = 1
 theme_override_font_sizes/font_size = 13
 theme_override_styles/panel = SubResource("StyleBoxFlat_0hol4")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0e48y")
@@ -161,6 +162,7 @@ hide_root = true
 
 [node name="Main" type="VBoxContainer" parent="VSplitContainer/EditorArea"]
 layout_mode = 2
+theme_override_constants/separation = 0
 
 [node name="Editors" type="TabContainer" parent="VSplitContainer/EditorArea/Main"]
 material = ExtResource("2_0hol4")
@@ -180,6 +182,14 @@ tab_focus_mode = 0
 [node name="StatusBar" type="HBoxContainer" parent="VSplitContainer/EditorArea/Main"]
 visible = false
 layout_mode = 2
+theme = SubResource("Theme_0e48y")
+theme_override_constants/separation = 0
+
+[node name="RowCol" type="Label" parent="VSplitContainer/EditorArea/Main/StatusBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_fgk5b")
+text = "asdf"
 
 [node name="Spacer" type="Control" parent="VSplitContainer/EditorArea/Main/StatusBar"]
 layout_mode = 2
@@ -191,6 +201,7 @@ layout_mode = 2
 [node name="CRLF" type="Label" parent="VSplitContainer/EditorArea/Main/StatusBar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_fgk5b")
 
 [node name="Spacer2" type="Control" parent="VSplitContainer/EditorArea/Main/StatusBar"]
 custom_minimum_size = Vector2(5, 0)
@@ -201,4 +212,4 @@ layout_mode = 2
 [node name="Label" type="Label" parent="."]
 visible = false
 layout_mode = 2
-text = "90.37"
+text = "114.57"
