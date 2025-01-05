@@ -1,16 +1,21 @@
 extends Control
 
-@export var stale_check_ms := 5000
+@onready var hot_exit := $"../HotDB"
 
-@onready var tree := $EditorArea/Tree
-@onready var editors : TabContainer = $EditorArea/Main/Editors
-@onready var menu := $MenuList/MenuBar
+@export var stale_check_ms := 5000.0
+@export var stale_check_round_robin := 1000.0
 
-var dummy_name_num := 0
-var dummy_name_prefix := "UNTITLED%\n://://///////:\r" # this shoooouuuuld be awful enough to be invalid on every OS?
+@export var version_check_ms := 1000.0
+
+@onready var tree : Tree = $EditorArea/Tree
+@onready var editors : TabContainer = $EditorArea/Center/Editors
+@onready var menu : MenuBar = $MenuList/MenuBar
+
+@onready var dummy_ := func(): randomize(); return null
+# this shoooouuuuld be awful enough to be invalid on every OS?
+var dummy_name_prefix := "UNTITLED%\n://:////:\r"
 func get_new_dummy_name():
-    dummy_name_num += 1
-    return dummy_name_prefix + str(dummy_name_num)
+    return dummy_name_prefix + String.num_uint64(randi(), 64)
 
 func file_open_pretty_please(fname, mode) -> FileAccess:
     # on some OSs, like windows, file access can fail spuriously
@@ -19,6 +24,7 @@ func file_open_pretty_please(fname, mode) -> FileAccess:
     for _i in 5:
         if f:
             break
+        OS.delay_usec(250)
         f = FileAccess.open(fname, mode)
     return f
 
@@ -50,11 +56,12 @@ func ask_close(editor : CodeEdit, fname : String):
     force_dirty_update(editor, fname)
     var idx := editor.get_index()
     if editors.get_tab_button_icon(idx) != null:
-        if !await confirm_dialog("File has not been saved or has been changed externally. Close anyway?\n\nAny unsaved data will be lost.", "Close Warning"):
+        if !await confirm_dialog("File has not been saved or has been changed externally. Close anyway?\n\nAny unsaved data will be lost.", "Unsaved Data Warning"):
             return
     do_close(editor, fname)
     
 func do_close(editor : CodeEdit, fname : String):
+    hot_exit.unregister_editor(editor)
     open_files.erase(fname)
     open_file_hashes.erase(fname)
     editors.remove_child(editor)
@@ -85,8 +92,8 @@ func _notification(what):
     if what == NOTIFICATION_WM_CLOSE_REQUEST:
         dirty_update_all()
         # TODO: implement hot exit
-        if any_is_dirty():
-            if !await confirm_dialog("At least one file has not been saved, or has been changed externally.Close anyway?\n\nAny unsaved data will be lost.", "Close Warning"):
+        if false and any_is_dirty():
+            if !await confirm_dialog("At least one file has not been saved, or has been changed externally. Close anyway?\n\nAny unsaved data will be lost.", "Unsaved Data Warning"):
                 return
         get_tree().quit()
         
@@ -126,13 +133,15 @@ var open_files_is_crlf = {}
 var open_file_hashes = {}
 var open_file_modtimes = {}
 var open_file_modtimes_temp = {}
+var open_file_version_num = {}
 
-func init_buffer(s : String, fname : String, ftime):
+func init_buffer(s : String, fname : String, ftime, no_db_insert : bool = false):
     print("starting to init buffer...")
     var justfile := fname.get_file()
     
     var start = Time.get_ticks_msec()
     var editor := preload("res://CodeEditor.tscn").instantiate()
+    editor.visible = false
     editor.use_parent_material = true
     editor.text_changed.connect(buffer_updated.bind(editor))
     var end = Time.get_ticks_msec()
@@ -170,6 +179,7 @@ func init_buffer(s : String, fname : String, ftime):
     open_files[fname] = editor
     open_file_modtimes[fname] = ftime
     open_file_modtimes_temp[fname] = ftime
+    open_file_version_num[fname] = editor.get_version()
     end = Time.get_ticks_msec()
     prints("dict update time (ms):", str(end-start))
     
@@ -186,11 +196,13 @@ func init_buffer(s : String, fname : String, ftime):
     if s.length() > 10000:
         print("adding loading text?")
         editor.text = "<Loading....>"
-        if s.length() > 100000:
+        if s.length() > 1000000:
             editor.wrap_mode = TextEdit.LINE_WRAPPING_NONE
             editor.autowrap_mode = TextServer.AUTOWRAP_OFF
             editor.text = "<Loading.... NOTE: Very large file detected. Disabling word wrapping. Editing will still work!>"
-        editor.show()
+        if !no_db_insert:
+            editor.show()
+        editor.clear_undo_history()
         await Engine.get_main_loop().process_frame
         await Engine.get_main_loop().process_frame
     
@@ -202,11 +214,17 @@ func init_buffer(s : String, fname : String, ftime):
     prints("text assign time (ms):", str(end-start))
     
     start = Time.get_ticks_msec()
-    editor.show()
+    if !no_db_insert:
+        editor.show()
     end = Time.get_ticks_msec()
     prints("show time (ms):", str(end-start))
+    
+    editor.lines_edited_from.connect(on_lines_edited_from)
+    
+    if !no_db_insert:
+        hot_exit.register_editor(editor)
 
-func do_open(fname : String):
+func do_open(fname : String, no_db_insert : bool = false):
     if fname.is_relative_path():
         fname = DirAccess.open(".").get_current_dir() + "/" + fname
     
@@ -220,7 +238,8 @@ func do_open(fname : String):
         f.close()
     
     if fname in open_files:
-        open_files[fname].show()
+        if !no_db_insert:
+            open_files[fname].show()
     elif fname and FileAccess.file_exists(fname):
         var start = Time.get_ticks_msec()
         var f := file_open_pretty_please(fname, FileAccess.READ)
@@ -233,7 +252,7 @@ func do_open(fname : String):
         var end = Time.get_ticks_msec()
         prints("file read time (ms):", str(end-start))
         
-        init_buffer(s, fname, ftime)
+        init_buffer(s, fname, ftime, no_db_insert)
 
 func trigger_open():
     var diag := FileDialog.new()
@@ -394,11 +413,11 @@ func get_editor_md5(editor : CodeEdit) -> String:
 func current_ts_update(fname : String):
     if FileAccess.file_exists(fname):
         open_file_modtimes_temp[fname] = FileAccess.get_modified_time(fname)
-        last_ts_check = Time.get_ticks_usec()
+        last_ts_check = Time.get_ticks_msec()
 
 func force_dirty_update(editor : CodeEdit, fname : String):
     var idx := editor.get_index()
-    if abs(last_ts_check - Time.get_ticks_usec()) > stale_check_ms:
+    if abs(last_ts_check - Time.get_ticks_msec()) > stale_check_ms:
         current_ts_update(fname)
     
     var start = Time.get_ticks_msec()
@@ -435,7 +454,7 @@ func buffer_updated(editor : CodeEdit):
     if fname == "":
         editors.set_tab_button_icon(idx, preload("res://unsaved.png"))
     else:
-        if abs(last_ts_check - Time.get_ticks_usec()) > stale_check_ms:
+        if abs(last_ts_check - Time.get_ticks_msec()) > stale_check_ms:
             current_ts_update(fname)
         
         force_dirty_update(editor, fname)
@@ -460,6 +479,36 @@ var last_ts_check_process = Time.get_ticks_msec()
 var f := 0
 var t := 0.0
 
+var potentially_dirty_lines = {}
+func on_lines_edited_from(from : int, to : int):
+    for i in range(from, to+1):
+        potentially_dirty_lines[i] = null
+    #var editor = editors.get_tab_control(editors.current_tab)
+    #print(var_to_str(editor))
+    #print(Engine.get_frames_drawn())
+
+func force_check_updated(editor : CodeEdit, fname : String):
+    open_file_modtimes_temp[fname] = FileAccess.get_modified_time(fname)
+    
+    var text_md5 := get_editor_md5(editor)
+    
+    #prints("checking", fname)
+    
+    if open_file_modtimes[fname] != open_file_modtimes_temp[fname] \
+        and open_file_hashes[fname] != text_md5:
+        editors.set_tab_button_icon(editor.get_index(), preload("res://outdated.png"))
+    elif open_file_modtimes[fname] != open_file_modtimes_temp[fname]:
+        editors.set_tab_button_icon(editor.get_index(), preload("res://outdated_but_saved.png"))
+    elif open_file_hashes[fname] != text_md5:
+        #prints("think", fname, "is modified...")
+        editors.set_tab_button_icon(editor.get_index(), preload("res://unsaved.png"))
+    else:
+        editors.set_tab_button_icon(editor.get_index(), null)
+
+var last_version_check = Time.get_ticks_msec()
+
+var last_rr_ts_check = Time.get_ticks_msec()
+var rr_ts_index := 0
 var prev_timestamp = Time.get_ticks_msec()
 func _process(delta: float) -> void:
     if Engine.is_editor_hint():
@@ -477,6 +526,14 @@ func _process(delta: float) -> void:
         prints("took", (timestamp - prev_timestamp)/1000.0, "seconds between frames")
     prev_timestamp = timestamp
     
+    last_rr_ts_check += delta
+    if last_rr_ts_check * 1000.0 > stale_check_round_robin and editors.get_tab_count() > 0:
+        last_rr_ts_check = 0.0
+        rr_ts_index = (rr_ts_index + 1) % editors.get_tab_count()
+        var fname = editors.get_tab_metadata(rr_ts_index)
+        if FileAccess.file_exists(fname):
+            force_check_updated(editors.get_tab_control(rr_ts_index), fname)
+    
     if any_window_has_focus():
         since_input += delta
         if since_input > 2.0:
@@ -491,9 +548,9 @@ func _process(delta: float) -> void:
             OS.low_processor_usage_mode_sleep_usec = 20000 # 50hz
     
     %CRLF.text = ""
-    $EditorArea/Main/StatusBar.visible = false
+    $EditorArea/Center/StatusBar.visible = false
     if editors.current_tab >= 0 and editors.current_tab < editors.get_tab_count():
-        $EditorArea/Main/StatusBar.visible = true
+        $EditorArea/Center/StatusBar.visible = true
         var fname = editors.get_tab_metadata(editors.current_tab)
         var editor : CodeEdit = editors.get_tab_control(editors.current_tab)
         
@@ -503,6 +560,14 @@ func _process(delta: float) -> void:
              %CRLF.text = "LF"
         
         %RowCol.text = str(str(editor.get_caret_line()) + ":" + str(editor.get_caret_column()))
+        
+        last_version_check += delta
+        if last_version_check * 1000.0 > version_check_ms:
+            last_version_check = 0.0
+            if open_file_version_num[fname] != editor.get_version():
+                open_file_version_num[fname] = editor.get_version()
+                prints("new version", editor.get_version())
+                hot_exit.update_editor(editor)
         
         if abs(last_ts_check_process - Time.get_ticks_msec()) > stale_check_ms:
             current_ts_update(fname)
