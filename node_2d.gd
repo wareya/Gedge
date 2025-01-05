@@ -109,6 +109,7 @@ var open_file_modtimes = {}
 var open_file_modtimes_temp = {}
 
 func init_buffer(s : String, fname : String, ftime):
+    print("starting to init buffer...")
     var justfile := fname.get_file()
     
     var start = Time.get_ticks_msec()
@@ -129,19 +130,54 @@ func init_buffer(s : String, fname : String, ftime):
     end = Time.get_ticks_msec()
     prints("add child time (ms):", str(end-start))
     
+    var old = editors.get_tab_control(editors.current_tab)
+    if old:
+        old.hide()
+    
     start = Time.get_ticks_msec()
     editors.set_tab_title(idx, justfile)
+    end = Time.get_ticks_msec()
+    prints("title set time (ms):", str(end-start))
+    start = Time.get_ticks_msec()
     editors.set_tab_metadata(idx, fname)
+    end = Time.get_ticks_msec()
+    prints("metadata set time (ms):", str(end-start))
+    start = Time.get_ticks_msec()
     editors.set_tab_icon(idx, preload("res://text.png"))
+    end = Time.get_ticks_msec()
+    prints("icon set time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
     open_files[fname] = editor
     open_file_modtimes[fname] = ftime
     open_file_modtimes_temp[fname] = ftime
-    open_files_is_crlf[fname] = s.count("\n") == s.count("\r\n")
     end = Time.get_ticks_msec()
-    prints("other stuff time (ms):", str(end-start))
+    prints("dict update time (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    open_files_is_crlf[fname] = s.get_slice_count("\n") == s.get_slice_count("\r\n")
+    end = Time.get_ticks_msec()
+    prints("dict update time (is_crlf) (ms):", str(end-start))
+    
+    start = Time.get_ticks_msec()
+    open_file_hashes[fname] = s.md5_text()
+    end = Time.get_ticks_msec()
+    prints("md5 time (ms):", str(end-start))
+    
+    if s.length() > 10000:
+        print("adding loading text?")
+        editor.text = "<Loading....>"
+        if s.length() > 100000:
+            editor.wrap_mode = TextEdit.LINE_WRAPPING_NONE
+            editor.autowrap_mode = TextServer.AUTOWRAP_OFF
+            editor.text = "<Loading.... NOTE: Very large file detected. Disabling word wrapping.>"
+        editor.show()
+        await Engine.get_main_loop().process_frame
+        await Engine.get_main_loop().process_frame
     
     start = Time.get_ticks_msec()
     editor.text = s
+    s = ""
     editor.clear_undo_history()
     end = Time.get_ticks_msec()
     prints("text assign time (ms):", str(end-start))
@@ -150,12 +186,6 @@ func init_buffer(s : String, fname : String, ftime):
     editor.show()
     end = Time.get_ticks_msec()
     prints("show time (ms):", str(end-start))
-    
-    start = Time.get_ticks_msec()
-    open_file_hashes[fname] = s.md5_text()
-    end = Time.get_ticks_msec()
-    prints("md5 time (ms):", str(end-start))
-    s = ""
 
 func do_open(fname : String):
     if fname.is_relative_path():
@@ -411,12 +441,12 @@ func _process(delta: float) -> void:
     
     %CRLF.text = ""
     $EditorArea/Main/StatusBar.visible = false
-    if editors.current_tab >= 0:
+    if editors.current_tab >= 0 and editors.current_tab < editors.get_tab_count():
         $EditorArea/Main/StatusBar.visible = true
         var fname = editors.get_tab_metadata(editors.current_tab)
         var editor = editors.get_tab_control(editors.current_tab)
         
-        if open_files_is_crlf[fname]:
+        if fname in open_files_is_crlf and open_files_is_crlf[fname]:
              %CRLF.text = "CRLF"
         else:
              %CRLF.text = "LF"
@@ -432,4 +462,3 @@ func _process(delta: float) -> void:
                 editors.set_tab_button_icon(editors.current_tab, preload("res://outdated.png"))
             elif open_file_modtimes[fname] != open_file_modtimes_temp[fname]:
                 editors.set_tab_button_icon(editors.current_tab, preload("res://outdated_but_saved.png"))
-

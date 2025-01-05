@@ -91,7 +91,6 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_q6r6c")
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("1_0jya4")
-stale_check_ms = null
 
 [node name="MenuList" type="HFlowContainer" parent="VSplitContainer"]
 layout_mode = 2
@@ -202,4 +201,4 @@ layout_mode = 2
 [node name="Label" type="Label" parent="."]
 visible = false
 layout_mode = 2
-text = "143.2"
+text = "90.37"
